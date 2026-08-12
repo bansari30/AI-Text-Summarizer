@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Condense — AI Text Summarizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #EEEDE7;
+    --paper-line: #D9D7CD;
+    --ink: #20241F;
+    --ink-soft: #55594F;
+    --indigo: #33406B;
+    --amber: #C68A2E;
+    --amber-soft: #EFDDB6;
+    --red-mark: #A23E2E;
+    --radius: 3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    background-image:
+      linear-gradient(var(--paper-line) 1px, transparent 1px);
+    background-size: 100% 2.1em;
+    background-position: 0 7.6em;
+  }
+  .wrap{
+    max-width:900px;
+    margin:0 auto;
+    padding:4rem 2rem 6rem;
+  }
+  header{
+    margin-bottom:3rem;
+    border-bottom:1px solid var(--ink);
+    padding-bottom:1.5rem;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:1rem;
+    flex-wrap:wrap;
+  }
+  .masthead{
+    font-family:'Newsreader', serif;
+    font-size:2.6rem;
+    font-weight:600;
+    letter-spacing:-0.01em;
+    line-height:1;
+  }
+  .masthead em{
+    font-style:italic;
+    color:var(--indigo);
+  }
+  .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    text-align:right;
+  }
+  .deck{
+    font-family:'Newsreader', serif;
+    font-style:italic;
+    font-size:1.05rem;
+    color:var(--ink-soft);
+    max-width:38em;
+    margin:0.75rem 0 0;
+  }
+
+  .key-row{
+    display:flex;
+    align-items:center;
+    gap:0.75rem;
+    margin-bottom:2rem;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    flex-wrap:wrap;
+  }
+  .key-row input{
+    flex:1;
+    min-width:220px;
+    background:transparent;
+    border:none;
+    border-bottom:1px dashed var(--ink-soft);
+    padding:0.4rem 0.2rem;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    color:var(--ink);
+  }
+  .key-row input:focus{outline:none; border-bottom-color:var(--indigo);}
+  .key-row a{color:var(--indigo); text-decoration:none; border-bottom:1px solid var(--indigo);}
+
+  .desk{
+    display:grid;
+    grid-template-columns: 1fr;
+    gap:1px;
+    background:var(--ink);
+    border:1px solid var(--ink);
+  }
+  .pane{
+    background:var(--paper);
+    padding:1.75rem;
+  }
+  .pane-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:0.9rem;
+  }
+  textarea{
+    width:100%;
+    min-height:220px;
+    resize:vertical;
+    border:none;
+    background:transparent;
+    font-family:'Newsreader', serif;
+    font-size:1.08rem;
+    line-height:1.6;
+    color:var(--ink);
+  }
+  textarea:focus{outline:none;}
+  textarea::placeholder{color:#9A9788;}
+
+  .controls{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:1rem;
+    margin-top:1.25rem;
+    flex-wrap:wrap;
+  }
+  .length-toggle{
+    display:flex;
+    gap:0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    border:1px solid var(--ink);
+  }
+  .length-toggle button{
+    background:transparent;
+    border:none;
+    padding:0.5rem 0.85rem;
+    cursor:pointer;
+    color:var(--ink-soft);
+    border-right:1px solid var(--ink);
+  }
+  .length-toggle button:last-child{border-right:none;}
+  .length-toggle button.active{
+    background:var(--ink);
+    color:var(--paper);
+  }
+  button.run{
+    background:var(--indigo);
+    color:var(--paper);
+    border:none;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    letter-spacing:0.04em;
+    padding:0.75rem 1.4rem;
+    cursor:pointer;
+    border-radius:var(--radius);
+    transition:background 0.15s ease, transform 0.1s ease;
+  }
+  button.run:hover{background:#25304F;}
+  button.run:active{transform:translateY(1px);}
+  button.run:disabled{background:#9A9788; cursor:progress;}
+  button.run:focus-visible, .length-toggle button:focus-visible, .key-row input:focus-visible{
+    outline:2px solid var(--indigo); outline-offset:2px;
+  }
+
+  .output-pane{min-height:120px;}
+  .summary-text{
+    font-family:'Newsreader', serif;
+    font-size:1.15rem;
+    line-height:1.65;
+  }
+  .placeholder{
+    color:#9A9788;
+    font-family:'Newsreader', serif;
+    font-style:italic;
+  }
+  .error{
+    color:var(--red-mark);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.85rem;
+    line-height:1.5;
+  }
+
+  .proofmark{
+    display:flex;
+    align-items:center;
+    gap:1.1rem;
+    margin-top:1.5rem;
+    padding-top:1.25rem;
+    border-top:1px dashed var(--paper-line);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.75rem;
+    color:var(--ink-soft);
+    flex-wrap:wrap;
+  }
+  .compression-stack{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    width:70px;
+  }
+  .compression-stack .bar{
+    height:4px;
+    background:var(--ink);
+  }
+  .compression-stack .bar.summary{background:var(--amber);}
+  .stamp{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    color:var(--red-mark);
+    border:1px solid var(--red-mark);
+    padding:0.15rem 0.5rem;
+    border-radius:2px;
+    transform:rotate(-2deg);
+    display:inline-block;
+  }
+
+  footer{
+    margin-top:3rem;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    color:var(--ink-soft);
+    line-height:1.6;
+  }
+  footer a{color:var(--indigo);}
+
+  @media (min-width:760px){
+    .desk{grid-template-columns:1fr 1fr;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    button.run{transition:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="masthead">Text <em>Summarizer</em></div>
+    </div>
+  </header>
+
+  <div class="key-row">
+    <span>HF token:</span>
+    <input type="password" id="apiKey" placeholder="hf_••••••••••••••••••••••••••" autocomplete="off">
+    <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">get a free one ↗</a>
+  </div>
+
+  <div class="desk">
+    <div class="pane">
+      <div class="pane-label"><span>Manuscript</span><span id="wordCountIn">0 words</span></div>
+      <textarea id="inputText" placeholder="Paste an article, an email thread, meeting notes — anything you'd rather not read in full."></textarea>
+      <div class="controls">
+        <div class="length-toggle" id="lengthToggle">
+          <button data-len="short">Brief</button>
+          <button data-len="medium" class="active">Standard</button>
+          <button data-len="long">Detailed</button>
+        </div>
+        <button class="run" id="runBtn">Summarize →</button>
+      </div>
+    </div>
+
+    <div class="pane output-pane">
+      <div class="pane-label"><span>Proof</span><span id="wordCountOut">—</span></div>
+      <div id="output"><p class="placeholder">The condensed version will appear here.</p></div>
+      <div class="proofmark" id="proofmark" style="display:none;">
+        <div class="compression-stack">
+          <div class="bar" id="barOriginal"></div>
+          <div class="bar summary" id="barSummary"></div>
+        </div>
+        <span id="compressionLabel"></span>
+        <span class="stamp" id="stamp">CONDENSED</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const inputText = document.getElementById('inputText');
+const wordCountIn = document.getElementById('wordCountIn');
+const wordCountOut = document.getElementById('wordCountOut');
+const runBtn = document.getElementById('runBtn');
+const output = document.getElementById('output');
+const apiKeyInput = document.getElementById('apiKey');
+const lengthToggle = document.getElementById('lengthToggle');
+const proofmark = document.getElementById('proofmark');
+const barOriginal = document.getElementById('barOriginal');
+const barSummary = document.getElementById('barSummary');
+const compressionLabel = document.getElementById('compressionLabel');
+
+let selectedLength = 'medium';
+const lengthParams = {
+  short:  { max_length: 60,  min_length: 15 },
+  medium: { max_length: 130, min_length: 40 },
+  long:   { max_length: 220, min_length: 90 }
+};
+
+function countWords(str){
+  const t = str.trim();
+  return t ? t.split(/\s+/).length : 0;
+}
+
+inputText.addEventListener('input', () => {
+  wordCountIn.textContent = countWords(inputText.value) + ' words';
+});
+
+lengthToggle.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  [...lengthToggle.children].forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedLength = btn.dataset.len;
+});
+
+function chunkText(text, maxChars){
+  const sentences = text.match(/[^.!?]+[.!?]*/g) || [text];
+  const chunks = [];
+  let current = '';
+  for(const s of sentences){
+    if((current + s).length > maxChars && current){
+      chunks.push(current.trim());
+      current = s;
+    } else {
+      current += s;
+    }
+  }
+  if(current.trim()) chunks.push(current.trim());
+  return chunks;
+}
+
+async function summarizeChunk(chunk, token, params){
+  const res = await fetch('https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      inputs: chunk,
+      parameters: params,
+      options: { wait_for_model: true }
+    })
+  });
+
+  if(!res.ok){
+    const errText = await res.text().catch(() => '');
+    throw new Error(`API error ${res.status}: ${errText || res.statusText}`);
+  }
+
+  const data = await res.json();
+  if(Array.isArray(data) && data[0] && data[0].summary_text){
+    return data[0].summary_text.trim();
+  }
+  if(data.error){
+    throw new Error(data.error);
+  }
+  throw new Error('Unexpected response shape from the API.');
+}
+
+async function handleSummarize(){
+  const text = inputText.value.trim();
+  const token = apiKeyInput.value.trim();
+
+  if(!token){
+    showError('Add a Hugging Face API token above first (it\'s free — see the link).');
+    return;
+  }
+  if(countWords(text) < 20){
+    showError('Paste in a bit more text — at least a couple of sentences works best.');
+    return;
+  }
+
+  runBtn.disabled = true;
+  runBtn.textContent = 'Reading…';
+  output.innerHTML = '<p class="placeholder">Condensing your text…</p>';
+  proofmark.style.display = 'none';
+
+  try{
+    const params = lengthParams[selectedLength];
+    const chunks = chunkText(text, 3000);
+    const summaries = [];
+    for(const chunk of chunks){
+      const s = await summarizeChunk(chunk, token, params);
+      summaries.push(s);
+    }
+    const finalSummary = summaries.join(' ');
+
+    output.innerHTML = `<p class="summary-text">${escapeHtml(finalSummary)}</p>`;
+    const originalWords = countWords(text);
+    const summaryWords = countWords(finalSummary);
+    wordCountOut.textContent = summaryWords + ' words';
+
+    const ratio = Math.max(0.04, summaryWords / originalWords);
+    barOriginal.style.width = '70px';
+    barSummary.style.width = Math.max(6, Math.round(70 * ratio)) + 'px';
+    compressionLabel.textContent = `${originalWords} → ${summaryWords} words (${Math.round((1 - ratio) * 100)}% shorter)`;
+    proofmark.style.display = 'flex';
+
+  } catch(err){
+    showError(err.message || 'Something went wrong reaching the API.');
+  } finally {
+    runBtn.disabled = false;
+    runBtn.textContent = 'Summarize →';
+  }
+}
+
+function showError(msg){
+  output.innerHTML = `<p class="error">⚠ ${escapeHtml(msg)}</p>`;
+  proofmark.style.display = 'none';
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+runBtn.addEventListener('click', handleSummarize);
+</script>
+</body>
+</html>
